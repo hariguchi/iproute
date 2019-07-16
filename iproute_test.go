@@ -247,36 +247,36 @@ func vrfVethVlanAdd(t *testing.T, vlanId uint16) (*Vrf, *Veth) {
 	// 2. Make sure they are down
 	// 3. Bring them up
 	//
-	if s, err := VlanAdd(veth.Name(), vlanId); err == nil {
+	if vlan, err := VlanAdd(veth.Name(), vlanId); err == nil {
 		exp := fmt.Sprintf("%s.%d", veth.Name(), vlanId)
-		if s == exp {
-			vlanIfs = append(vlanIfs, s)
-			if ok, err := IfIsUpByName(s); err == nil {
+		if vlan.Name() == exp {
+			vlanIfs = append(vlanIfs, vlan.Name())
+			if ok, err := IfIsUpByName(vlan.Name()); err == nil {
 				if ok {
-					t.Errorf("Error: %s should be down", s)
+					t.Errorf("Error: %s should be down", vlan.Name())
 				}
 			} else {
-				t.Errorf("Error: IfIsUpByName(%s): %v", s, err)
+				t.Errorf("Error: IfIsUpByName(%s): %v", vlan.Name(), err)
 			}
 		} else {
-			t.Errorf("Error: %s: should be %s", s, exp)
+			t.Errorf("Error: %s: should be %s", vlan.Name(), exp)
 		}
 	} else {
 		t.Errorf("Error: VlanAdd(%d, %s): %v", vlanId, veth.Name(), err)
 	}
-	if s, err := VlanAdd(veth.PeerName(), vlanId); err == nil {
+	if vlan, err := VlanAdd(veth.PeerName(), vlanId); err == nil {
 		exp := fmt.Sprintf("%s.%d", veth.PeerName(), vlanId)
-		if s == exp {
-			vlanIfs = append(vlanIfs, s)
-			if ok, err := IfIsUpByName(s); err == nil {
+		if vlan.Name() == exp {
+			vlanIfs = append(vlanIfs, vlan.Name())
+			if ok, err := IfIsUpByName(vlan.Name()); err == nil {
 				if ok {
-					t.Errorf("Error: %s should be down", s)
+					t.Errorf("Error: %s should be down", vlan.Name())
 				}
 			} else {
-				t.Errorf("Error: IfIsUpByName(%s): %v", s, err)
+				t.Errorf("Error: IfIsUpByName(%s): %v", vlan.Name(), err)
 			}
 		} else {
-			t.Errorf("Error: %s: should be %s", s, exp)
+			t.Errorf("Error: %s: should be %s", vlan.Name(), exp)
 		}
 	} else {
 		t.Errorf("Error: VlanAdd(%d, %s): %v", vlanId, veth.PeerName(), err)

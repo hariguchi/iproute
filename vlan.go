@@ -22,8 +22,7 @@ import (
 )
 
 type Vlan struct {
-	Name string
-	Vid  uint16
+	Link *netlink.Vlan
 }
 
 // VlanAdd adds a VLAN interface to the master interface
@@ -33,17 +32,29 @@ type Vlan struct {
 //            Empty string otherwise
 //         2. nil if success
 //            non-nil otherwise
-func VlanAdd(ifName string, vlanId uint16) (string, error) {
+func VlanAdd(ifName string, vlanId uint16) (*Vlan, error) {
 	if l, err := netlink.LinkByName(ifName); err == nil {
 		ifName := fmt.Sprintf("%s.%d", ifName, vlanId)
-		return ifName, netlink.LinkAdd(&netlink.Vlan{
+		if err := netlink.LinkAdd(&netlink.Vlan{
 			netlink.LinkAttrs{
 				Name:        ifName,
 				ParentIndex: l.Attrs().Index,
 			},
-			int(vlanId)})
+			int(vlanId)}); err != nil {
+			return nil, fmt.Errorf("LinkAdd(%s): %v", ifName, err)
+		}
+		if l, err := netlink.LinkByName(ifName); err == nil {
+			switch l := l.(type) {
+			case *netlink.Vlan:
+				return &Vlan{Link: l}, nil
+			default:
+				return nil, fmt.Errorf("VlanAdd(%s): not a VLAN", l.Attrs().Name)
+			}
+		} else {
+			return nil, fmt.Errorf("LinkByNamme(%s): %v", ifName, err)
+		}
 	} else {
-		return "", err
+		return nil, fmt.Errorf("LinkByName(%s): %v", ifName, err)
 	}
 }
 
@@ -53,4 +64,12 @@ func VlanAdd(ifName string, vlanId uint16) (string, error) {
 //         non-nil otherwise
 func VlanDelete(name string) error {
 	return LinkDel(name)
+}
+
+func (vlan *Vlan) Name() string {
+	return vlan.Link.Attrs().Name
+}
+
+func (vlan *Vlan) VlanId() int {
+	return vlan.Link.VlanId
 }
