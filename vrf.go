@@ -95,14 +95,14 @@ func VrfDelete(name string) error {
 	return LinkDel(name)
 }
 
-// VrfBindIntf binds an interface to a VRF
+// VrfBindIf binds an interface to a VRF
 // in: vrfName Name of VRF
 //     ifName Name of interface to be bound to VRF `vrfName'
 // return: nil if success
 //         non-nil otherwise
-func VrfBindIntf(vrfName, ifName string) error {
+func VrfBindIf(vrfName, ifName string) error {
 	if vrf, err := VrfGetByName(vrfName); err == nil {
-		return vrf.BindIntf(ifName)
+		return vrf.BindIf(ifName)
 	} else {
 		return fmt.Errorf("VrfGetByName(%s): %v", vrfName, err)
 	}
@@ -267,11 +267,11 @@ func (vrf *Vrf) IfDown() error {
 	return netlink.LinkSetDown(vrf.Link)
 }
 
-// VrfBindIntf binds an interface to a VRF
+// VrfBindIf binds an interface to a VRF
 // in: ifName Name of interface to be bound to VRF `vrfName'
 // return: nil if success
 //         non-nil otherwise
-func (vrf *Vrf) BindIntf(ifName string) error {
+func (vrf *Vrf) BindIf(ifName string) error {
 	if l, err := netlink.LinkByName(ifName); err == nil {
 		return netlink.LinkSetMasterByIndex(l, vrf.Index())
 	} else {

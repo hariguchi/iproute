@@ -135,10 +135,10 @@ func BridgeList() ([]Bridge, error) {
 	return brs, nil
 }
 
-func BridgeBindIntf(brName, ifName string) error {
-	banner := fmt.Sprintf("BridgeBindIntf(%s, %s): ", brName, ifName)
+func BridgeBindIf(brName, ifName string) error {
+	banner := fmt.Sprintf("BridgeBindIf(%s, %s): ", brName, ifName)
 	if br, err := BridgeGetByName(brName); err == nil {
-		return br.BindIntf(ifName)
+		return br.BindIf(ifName)
 	} else {
 		return fmt.Errorf("%sBridgeGetByName(): %v", banner, err)
 	}
@@ -157,8 +157,8 @@ func (br *Bridge) IfDown() error {
 	return netlink.LinkSetDown(br.Link)
 }
 
-func (br *Bridge) BindIntf(ifName string) error {
-	banner := fmt.Sprintf("BindIntf(%s, %s): ", br.Name(), ifName)
+func (br *Bridge) BindIf(ifName string) error {
+	banner := fmt.Sprintf("BindIf(%s, %s): ", br.Name(), ifName)
 	if l, err := netlink.LinkByName(ifName); err == nil {
 		return netlink.LinkSetMaster(l, br.Link)
 	} else {

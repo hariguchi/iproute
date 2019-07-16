@@ -278,7 +278,7 @@ func vrfVethVlanAdd(t *testing.T, vlanId uint16) (*Vrf, *Veth) {
 	}
 
 	for _, name := range vlanIfs {
-		if err := VrfBindIntf(vrf.Name(), name); err == nil {
+		if err := VrfBindIf(vrf.Name(), name); err == nil {
 			if err := IfUpByName(name); err == nil {
 				if ok, err := IfIsUpByName(name); err == nil {
 					if !ok {
@@ -291,7 +291,7 @@ func vrfVethVlanAdd(t *testing.T, vlanId uint16) (*Vrf, *Veth) {
 				t.Errorf("Error: IfUpByName(%s): %v", name, err)
 			}
 		} else {
-			t.Errorf("Error: VrfBindIntf(%s, %s): %v", vrf.Name(), name, err)
+			t.Errorf("Error: VrfBindIf(%s, %s): %v", vrf.Name(), name, err)
 		}
 	}
 	return vrf, veth
@@ -516,7 +516,7 @@ func TestBridge(t *testing.T) {
 		}
 	}
 	for i := 0; i < len(vethPair); i++ {
-		err = br.BindIntf(vethPair[i][1])
+		err = br.BindIf(vethPair[i][1])
 		if err != nil {
 			t.Fatal(err)
 		}
