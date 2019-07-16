@@ -173,6 +173,18 @@ func IfRename(oldName, newName string) error {
 	}
 }
 
+// IfUnbind unbinds an interface from the master device
+// in: ifName Name of interface to be unbound
+// return: nil if success
+//         non-nil otherwise
+func IfUnbind(ifName string) error {
+	if l, err := netlink.LinkByName(ifName); err == nil {
+		return netlink.LinkSetNoMaster(l)
+	} else {
+		return err
+	}
+}
+
 // IsTunnelByIndex returns true if theh specified interface is a
 // tunnel interface.
 // in: ifindex Ifindex of the interface to test
@@ -345,4 +357,16 @@ func IsIfPrefixByName(ifName, ifPrefix string) (bool, error) {
 	} else {
 		return false, err
 	}
+}
+
+func IfList() ([]string, error) {
+	var ifs []string
+	ll, err := netlink.LinkList()
+	if err != nil {
+		return nil, fmt.Errorf("LinkList(): %v", err)
+	}
+	for _, l := range ll {
+		ifs = append(ifs, l.Attrs().Name)
+	}
+	return ifs, nil
 }

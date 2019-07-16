@@ -23,81 +23,42 @@ import (
 )
 
 type Vrf struct {
-	Name  string
-	Index int
-	Tid   uint32
+	Link *netlink.Vrf
 }
 
-// VrfGetLinkByIndex returns a pointer to netlink.Vrf
-// whose ifindex is `idx'
+// VrfGetLinkByIndex returns a pointer to Vrf whose ifindex is `idx'
 // in: idx Ifindex of the target VRF
 // return: 1. Pointer to netlink.Vrf whose ifindex is `idx' if success
 //            nil otherwise
 //         2. nil if success
 //            non-nil otherwise
-func VrfGetLinkByIndex(idx int) (*netlink.Vrf, error) {
+func VrfGetByIndex(idx int) (*Vrf, error) {
 	if l, err := netlink.LinkByIndex(idx); err == nil {
 		switch l := l.(type) {
 		case *netlink.Vrf:
-			return l, nil
+			return &Vrf{Link: l}, nil
 		default:
-			return nil, fmt.Errorf("Error: VrfGetByIndex(%d): not VRF", idx)
+			return nil, fmt.Errorf("VrfGetByIndex(%d): not a VRF", idx)
 		}
 	} else {
 		return nil, err
 	}
 }
 
-// VrfGetLinkByName returns a pointer to netlink.Vrf whose name is `name'
+// VrfGetLinkByName returns a pointer to Vrf whose name is `name'
 // in: name Name of VRF
 // return: 1. Pointer to netlink.Vrf associated with `name'
 //            undetermined otherwise.
 //         2. nil if there is a VRF whose name is `name'
 //            non-nil otherwise
-func VrfGetLinkByName(name string) (*netlink.Vrf, error) {
+func VrfGetByName(name string) (*Vrf, error) {
 	if l, err := netlink.LinkByName(name); err == nil {
 		switch l := l.(type) {
 		case *netlink.Vrf:
-			return l, nil
+			return &Vrf{Link: l}, nil
 		default:
-			return nil, fmt.Errorf("Error: VrfGetByName(%s): not VRF", name)
+			return nil, fmt.Errorf("VrfGetByName(%s): not a VRF", name)
 		}
-	} else {
-		return nil, err
-	}
-}
-
-// VrfGetByIndex returns a pointer to Vrf whose ifindex is `idx'
-// in: idx Ifindex of the target VRF
-// return: 1. Pointer to Vrf if VRF whose ifindex is `idx' exists
-//            nil otherwise
-//         2. nil if the VRF whose ifindex is `idx' exists
-//            non-nil otherwise
-func VrfGetByIndex(idx int) (*Vrf, error) {
-	if l, err := VrfGetLinkByIndex(idx); err == nil {
-		return &Vrf{
-			Name:  l.Attrs().Name,
-			Index: l.Attrs().Index,
-			Tid:   l.Table,
-		}, nil
-	} else {
-		return nil, err
-	}
-}
-
-// VrfGetByName returns a pointer to Vrf whose name is `name'
-// in: name Name of the target VRF
-// return 1. Pointer to Vrf if VRF whose name is `name' exists
-//           nil otherwise
-//        2. nil if VRF whose name is `name' exists
-//           non-nil otherwise
-func VrfGetByName(name string) (*Vrf, error) {
-	if l, err := VrfGetLinkByName(name); err == nil {
-		return &Vrf{
-			Name:  l.Attrs().Name,
-			Index: l.Attrs().Index,
-			Tid:   l.Table,
-		}, nil
 	} else {
 		return nil, err
 	}
@@ -129,57 +90,10 @@ func VrfDelete(name string) error {
 // return: nil if success
 //         non-nil otherwise
 func VrfBindIntf(vrfName, ifName string) error {
-	if vrf, err := VrfGetLinkByName(vrfName); err == nil {
-		if l, err := netlink.LinkByName(ifName); err == nil {
-			return netlink.LinkSetMasterByIndex(l, vrf.Attrs().Index)
-		} else {
-			return err
-		}
+	if vrf, err := VrfGetByName(vrfName); err == nil {
+		return vrf.BindIntf(ifName)
 	} else {
-		return err
-	}
-}
-
-// VrfBindIntf binds an interface to a VRF
-// in: vrfName Name of VRF
-//     ifName Name of interface to be bound to VRF `vrfName'
-// return: nil if success
-//         non-nil otherwise
-func VrfUnbindIntf(ifName string) error {
-	if l, err := netlink.LinkByName(ifName); err == nil {
-		return netlink.LinkSetNoMaster(l)
-	} else {
-		return err
-	}
-}
-
-// VrfIndexOf returns ifindex associated with the VRF
-// whose name is `name'
-// in: name Name of VRF
-// return 1. Ifindex (> 0) if VRF whose name is `name' exists
-//           -1 otherwise
-//        2. nil if success
-//           non-nil otherwise
-func VrfIndexOf(name string) (int, error) {
-	if l, err := netlink.LinkByName(name); err == nil {
-		return l.Attrs().MasterIndex, nil
-	} else {
-		return -1, err
-	}
-}
-
-// VrfOf returns the pointer to Vrf associated with the VRF
-// whose name is `name'
-// in: name Name of VRF
-// return 1. Poiner to Vrf if VRF whose name is `name' exists
-//           nil otherwise
-//        2. nil if success
-//           non-nil otherwise
-func VrfOf(name string) (*Vrf, error) {
-	if l, err := netlink.LinkByName(name); err == nil {
-		return VrfGetByIndex(l.Attrs().MasterIndex)
-	} else {
-		return nil, err
+		return fmt.Errorf("VrfGetByName(%s): %v", vrfName, err)
 	}
 }
 
@@ -216,9 +130,9 @@ func VrfGetRoutesByTid(tid int, family int, tableType int) (Routes, error) {
 //            non-nil otherwise
 func VrfGetRoutesByName(name string, family int, tblType int) (Routes, error) {
 	if vrf, err := VrfGetByName(name); err == nil {
-		return VrfGetRoutesByTid(int(vrf.Tid), family, tblType)
+		return VrfGetRoutesByTid(int(vrf.Tid()), family, tblType)
 	} else {
-		errMsg := fmt.Sprintf("Error: VrfGetRoutesByName(%s): ", vrf.Name)
+		errMsg := fmt.Sprintf("VrfGetRoutesByName(%s): ", vrf.Name())
 		return nil, fmt.Errorf(errMsg+"%v", err)
 	}
 }
@@ -232,7 +146,7 @@ func VrfGetRoutesByName(name string, family int, tblType int) (Routes, error) {
 //            non-nil otherwise
 func VrfGetIPv4routesByName(name string) (Routes, error) {
 	if vrf, err := VrfGetByName(name); err == nil {
-		return VrfGetRoutesByTid(int(vrf.Tid), nl.FAMILY_V4, RTN_UNICAST)
+		return VrfGetRoutesByTid(int(vrf.Tid()), nl.FAMILY_V4, RTN_UNICAST)
 	} else {
 		return Routes{}, err
 	}
@@ -258,7 +172,7 @@ func VrfGetIPv4localRoutes(vrf string) (Routes, error) {
 //            non-nil otherwise
 func VrfGetIPv6routesByName(name string) (Routes, error) {
 	if vrf, err := VrfGetByName(name); err == nil {
-		return VrfGetRoutesByTid(int(vrf.Tid), nl.FAMILY_V6, RTN_UNICAST)
+		return VrfGetRoutesByTid(int(vrf.Tid()), nl.FAMILY_V6, RTN_UNICAST)
 	} else {
 		return Routes{}, err
 	}
@@ -270,9 +184,9 @@ func VrfGetIPv6routesByName(name string) (Routes, error) {
 // return: nil if success
 //         non-nil otherwise
 func VrfAddRouteByName(name string, r *Route) error {
-	errMsg := fmt.Sprintf("Error: VrfAddRouteByName(%s, %v): ", name, r)
+	errMsg := fmt.Sprintf("VrfAddRouteByName(%s, %v): ", name, r)
 	if vrf, err := VrfGetByName(name); err == nil {
-		r.Table = int(vrf.Tid)
+		r.Table = int(vrf.Tid())
 		return netlink.RouteAdd(r)
 	} else {
 		return fmt.Errorf(errMsg+"VrfGetByName(): %v", err)
@@ -285,9 +199,9 @@ func VrfAddRouteByName(name string, r *Route) error {
 // return: nil if success
 //         non-nil otherwise
 func VrfDeleteRouteByName(name string, r *Route) error {
-	errMsg := fmt.Sprintf("ERROR: VrfDeleteRouteByName(%s, %v): ", name, r)
+	errMsg := fmt.Sprintf("VrfDeleteRouteByName(%s, %v): ", name, r)
 	if vrf, err := VrfGetByName(name); err == nil {
-		r.Table = int(vrf.Tid)
+		r.Table = int(vrf.Tid())
 		return netlink.RouteDel(r)
 	} else {
 		return fmt.Errorf(errMsg+"VrfGetByName(): %v", err)
@@ -301,9 +215,9 @@ func VrfDeleteRouteByName(name string, r *Route) error {
 // return: nil if success
 //         non-nil otherwise
 func VrfReplaceRouteByName(name string, r *Route) error {
-	errMsg := fmt.Sprintf("ERROR: VrfReplaceRouteByName(%s, %v): ", name, r)
+	errMsg := fmt.Sprintf("VrfReplaceRouteByName(%s, %v): ", name, r)
 	if vrf, err := VrfGetByName(name); err == nil {
-		r.Table = int(vrf.Tid)
+		r.Table = int(vrf.Tid())
 		return netlink.RouteReplace(r)
 	} else {
 		return fmt.Errorf(errMsg+"VrfGetByName(): %v", err)
@@ -315,9 +229,34 @@ func VrfReplaceRouteByName(name string, r *Route) error {
 // return: true if VRF `other' has the same name, ifindex, and table id
 //         false otherwise.
 func (vrf *Vrf) Equal(other *Vrf) bool {
-	if vrf.Name == other.Name &&
-		vrf.Index == other.Index && vrf.Tid == other.Tid {
+	if vrf.Name() == other.Name() &&
+		vrf.Index() == other.Index() && vrf.Tid() == other.Tid() {
 		return true
 	}
 	return false
+}
+
+func (vrf *Vrf) Name() string {
+	return vrf.Link.Attrs().Name
+}
+
+func (vrf *Vrf) Index() int {
+	return vrf.Link.Attrs().Index
+}
+
+func (vrf *Vrf) Tid() uint32 {
+	return vrf.Link.Table
+}
+
+// VrfBindIntf binds an interface to a VRF
+// in: ifName Name of interface to be bound to VRF `vrfName'
+// return: nil if success
+//         non-nil otherwise
+func (vrf *Vrf) BindIntf(ifName string) error {
+	if l, err := netlink.LinkByName(ifName); err == nil {
+		return netlink.LinkSetMasterByIndex(l, vrf.Index())
+	} else {
+		return fmt.Errorf("LinkByName(%s): %v", ifName, err)
+	}
+
 }

@@ -14,28 +14,26 @@ import (
 	"testing"
 )
 
-func testVrfAdd(t *testing.T) Vrf {
-	vrf := Vrf{
-		Name: "",
-		Tid:  1,
-	}
+func testVrfAdd(t *testing.T) *Vrf {
+	var vrfName string
+	var tid uint32 = 1
 	for {
-		vrf.Name = fmt.Sprintf("myVRF%02d", vrf.Tid)
-		if _, err := VrfGetByName(vrf.Name); err == nil {
-			t.Logf("VRF %s already exists.", vrf.Name)
-			vrf.Tid++
+		vrfName = fmt.Sprintf("myVRF%02d", tid)
+		if _, err := VrfGetByName(vrfName); err == nil {
+			t.Logf("VRF %s already exists.", vrfName)
+			tid++
 		} else {
 			break
 		}
 	}
-	t.Logf("Adding VRF %s (tid %d)... ", vrf.Name, vrf.Tid)
-	if err := VrfAdd(vrf.Name, vrf.Tid); err == nil {
-		if v, err := VrfGetByName(vrf.Name); err == nil {
-			if v.Name == vrf.Name && v.Tid == vrf.Tid {
-				vrf.Index = v.Index
+	t.Logf("Adding VRF %s (tid %d)... ", vrfName, tid)
+	if err := VrfAdd(vrfName, tid); err == nil {
+		if vrf, err := VrfGetByName(vrfName); err == nil {
+			if vrf.Name() == vrfName && vrf.Tid() == tid {
 				t.Logf("confirmed.")
+				return vrf
 			} else {
-				t.Fatalf("Error: VRF %s, tid %d", v.Name, v.Tid)
+				t.Fatalf("Error: VRF %s (tid %d)", vrf.Name(), vrf.Tid())
 			}
 		} else {
 			t.Fatalf("Error: no such VRF exists.")
@@ -43,25 +41,25 @@ func testVrfAdd(t *testing.T) Vrf {
 	} else {
 		t.Fatalf("Error: failed to add.")
 	}
-	return vrf
+	return nil
 }
 
 func testVrfDelete(t *testing.T, vrf *Vrf) {
-	t.Logf("Deleting VRF %s... ", vrf.Name)
+	t.Logf("Deleting VRF %s... ", vrf.Name())
 
-	if _, err := VrfGetByName(vrf.Name); err == nil {
-		if err := VrfDelete(vrf.Name); err == nil {
+	if _, err := VrfGetByName(vrf.Name()); err == nil {
+		if err := VrfDelete(vrf.Name()); err == nil {
 			t.Logf("deleted... ")
-			if _, err := VrfGetByName(vrf.Name); err != nil {
+			if _, err := VrfGetByName(vrf.Name()); err != nil {
 				t.Logf("confirmed.")
 			} else {
-				t.Fatalf("Error: VRF %s still exists.", vrf.Name)
+				t.Fatalf("Error: VRF %s still exists.", vrf.Name())
 			}
 		} else {
-			t.Fatalf("Error: failed to delete VRF %s", vrf.Name)
+			t.Fatalf("Error: failed to delete VRF %s", vrf.Name())
 		}
 	} else {
-		t.Fatalf("Error: no such VRF: %s", vrf.Name)
+		t.Fatalf("Error: no such VRF: %s", vrf.Name())
 	}
 }
 
@@ -170,17 +168,16 @@ func testIpAddrAdd(t *testing.T, veth *Veth, vlanId uint16, ifa []string) {
 }
 
 func testRename(t *testing.T, vrf *Vrf, name string) {
-	errMsg := fmt.Sprintf("Error: IfRename(%s, %s): ", vrf.Name, name)
-	t.Logf("Renaming %s to %s...", vrf.Name, name)
-	if err := IfRename(vrf.Name, name); err == nil {
+	errMsg := fmt.Sprintf("Error: IfRename(%s, %s): ", vrf.Name(), name)
+	t.Logf("Renaming %s to %s...", vrf.Name(), name)
+	if err := IfRename(vrf.Name(), name); err == nil {
 		if v, err := VrfGetByName(name); err == nil {
-			if v.Name == name && v.Tid == vrf.Tid {
+			if v.Name() == name && v.Tid() == vrf.Tid() {
 				t.Logf("confirmed.")
-				vrf.Name = name
 			} else {
 				t.Errorf(errMsg+
 					"name: %s (should be %s), Tid: %d (should be %d), %v",
-					v.Name, name, v.Tid, vrf.Tid, err)
+					v.Name(), name, v.Tid(), vrf.Tid(), err)
 			}
 		} else {
 			t.Errorf(errMsg+"VrfGetByName(%s): %v", name, err)
@@ -190,7 +187,7 @@ func testRename(t *testing.T, vrf *Vrf, name string) {
 	}
 }
 
-func vrfVethVlanAdd(t *testing.T, vlanId uint16) (Vrf, Veth) {
+func vrfVethVlanAdd(t *testing.T, vlanId uint16) (*Vrf, Veth) {
 	var vlanIfs []string
 
 	// 1. Create a vrf
@@ -199,15 +196,18 @@ func vrfVethVlanAdd(t *testing.T, vlanId uint16) (Vrf, Veth) {
 	// 4. Make sure it is up
 	//
 	vrf := testVrfAdd(t)
-	if r, err := IfIsUpByName(vrf.Name); err == nil {
+	if vrf == nil {
+		t.Fatal("Failed to create a VRF")
+	}
+	if r, err := IfIsUpByName(vrf.Name()); err == nil {
 		if r == true {
-			t.Errorf("Error: VRF %s should be DOWN", vrf.Name)
+			t.Errorf("Error: VRF %s should be DOWN", vrf.Name())
 		}
-		if err := IfUpByName(vrf.Name); err != nil {
-			t.Errorf("Error: Failed to bring up %s", vrf.Name)
+		if err := IfUpByName(vrf.Name()); err != nil {
+			t.Errorf("Error: Failed to bring up %s", vrf.Name())
 		}
 	} else {
-		t.Errorf("Error: IfIsUpByName(%s): %v", vrf.Name, err)
+		t.Errorf("Error: IfIsUpByName(%s): %v", vrf.Name(), err)
 	}
 
 	// 1. Add veth pair
@@ -277,7 +277,7 @@ func vrfVethVlanAdd(t *testing.T, vlanId uint16) (Vrf, Veth) {
 	}
 
 	for _, name := range vlanIfs {
-		if err := VrfBindIntf(vrf.Name, name); err == nil {
+		if err := VrfBindIntf(vrf.Name(), name); err == nil {
 			if err := IfUpByName(name); err == nil {
 				if ok, err := IfIsUpByName(name); err == nil {
 					if !ok {
@@ -290,7 +290,7 @@ func vrfVethVlanAdd(t *testing.T, vlanId uint16) (Vrf, Veth) {
 				t.Errorf("Error: IfUpByName(%s): %v", name, err)
 			}
 		} else {
-			t.Errorf("Error: VrfBindIntf(%s, %s): %v", vrf.Name, name, err)
+			t.Errorf("Error: VrfBindIntf(%s, %s): %v", vrf.Name(), name, err)
 		}
 	}
 	return vrf, veth
@@ -301,6 +301,7 @@ func testPing(t *testing.T, vrf *Vrf, ifPrefix []string) {
 		ifAddr  []string
 		pingMsg = regexp.MustCompile(`0% packet loss`)
 	)
+
 	for _, prefix := range ifPrefix {
 		if ipa, _, err := net.ParseCIDR(prefix); err == nil {
 			ifAddr = append(ifAddr, ipa.String())
@@ -312,9 +313,9 @@ func testPing(t *testing.T, vrf *Vrf, ifPrefix []string) {
 	if fp, err := ioutil.TempFile("", "vrfping"); err == nil {
 		defer os.Remove(fp.Name())
 
-		cmd := fmt.Sprintf("#!/bin/sh\nVRF=%s ", vrf.Name)
+		cmd := fmt.Sprintf("#!/bin/sh\nVRF=%s ", vrf.Name())
 		cmd += "LD_PRELOAD=/usr/bin/vrf_socket.so "
-		cmd += fmt.Sprintf("ping -q -c 5 -I %s %s\n", ifAddr[0], ifAddr[1])
+		cmd += fmt.Sprintf("ping -f -q -c 5 -I %s %s\n", ifAddr[0], ifAddr[1])
 		if _, err := fp.WriteString(cmd); err == nil {
 			name := fp.Name()
 			if err := fp.Close(); err == nil {
@@ -328,6 +329,7 @@ func testPing(t *testing.T, vrf *Vrf, ifPrefix []string) {
 						}
 					} else {
 						t.Errorf("testPing(): Command(%s): %v", name, err)
+						t.Fatalf("testPing(): Output: %s", string(out))
 					}
 				} else {
 					t.Errorf("testPing(): Chmod(): %v", err)
@@ -352,9 +354,9 @@ func testRoutes(t *testing.T, vrf *Vrf, dstName, nhName string) {
 		if r, err := NewRoute(dst, nh); err == nil {
 			rt = &r
 			t.Logf("Addring route: %s nh %s", dst, nhName)
-			if err := VrfAddRouteByName(vrf.Name, rt); err != nil {
+			if err := VrfAddRouteByName(vrf.Name(), rt); err != nil {
 				t.Errorf(errMsg+
-					"VrfAddRouteByName(%s, %v): %v", vrf.Name, rt, err)
+					"VrfAddRouteByName(%s, %v): %v", vrf.Name(), rt, err)
 				return
 			}
 		} else {
@@ -365,7 +367,7 @@ func testRoutes(t *testing.T, vrf *Vrf, dstName, nhName string) {
 		// verify rt is in the Kernel FIB
 		//
 		t.Logf("rt: %v", rt)
-		if routes, err := VrfGetIPv4routesByName(vrf.Name); err == nil {
+		if routes, err := VrfGetIPv4routesByName(vrf.Name()); err == nil {
 			t.Logf(" all routes:\n%v", routes)
 			err = fmt.Errorf(errMsg+"%s nh %s: not exists", dst, nhName)
 			for _, r := range routes {
@@ -383,19 +385,6 @@ func testRoutes(t *testing.T, vrf *Vrf, dstName, nhName string) {
 	} else {
 		t.Errorf(errMsg+"ParseCIDR(): %v", err)
 		return
-	}
-}
-
-func testVrfOf(t *testing.T, vrf *Vrf, ifName string) {
-	t.Logf("Testing VrfOf(%s)...", ifName)
-	if v, err := VrfOf(ifName); err == nil {
-		if v.Equal(vrf) {
-			t.Logf("confirmed.")
-		} else {
-			t.Errorf("Error: VrfOf(): expected: %v, returned: %v", vrf, v)
-		}
-	} else {
-		t.Errorf("Error: VrfOf(%s): %v", ifName, err)
 	}
 }
 
@@ -439,24 +428,60 @@ func TestIPsort(t *testing.T) {
 
 func TestVrf(t *testing.T) {
 	var vlanId uint16 = 100
+	var newVrfName = "vrf01"
+	var err error
 	ifAddrs := []string{"172.16.1.1/24", "172.16.1.2/24"}
 
 	vrf, veth := vrfVethVlanAdd(t, uint16(vlanId))
-	testRename(t, &vrf, "vrf01")
+	testRename(t, vrf, newVrfName)
+	if vrf == nil {
+		t.Fatal("Frailed to rename a VRF")
+	}
+	//
+	// need to upate `vrf' since its name was changed
+	//
+	if vrf, err = VrfGetByName(newVrfName); err != nil {
+		t.Fatal(err)
+	}
 	testIpAddrAdd(t, &veth, vlanId, ifAddrs)
 	vifName := fmt.Sprintf("%s.%d", veth.Name, vlanId)
-	testVrfOf(t, &vrf, vifName)
-	testPing(t, &vrf, ifAddrs)
-	testRoutes(t, &vrf, "192.168.1.0/24", "172.16.1.3")
+	testPing(t, vrf, ifAddrs)
+	testRoutes(t, vrf, "192.168.1.0/24", "172.16.1.3")
 
 	testVlanDelete(t, vifName)
-	testVrfDelete(t, &vrf)
+	testVrfDelete(t, vrf)
 	testVethDelete(t, &veth)
 }
 
 func TestSetOnlink(t *testing.T) {
 	nhi := NHinfo{}
 	if err := SetOnlink(&nhi); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBridge(t *testing.T) {
+	brName := "br_test"
+	br, err := BridgeGetByName(brName)
+	if err == nil {
+		t.Logf("bridge %s already exists. Deletes it", br.Name())
+		err = BridgeDelete(brName)
+		if err != nil {
+			t.Fatal(err)
+		}
+	} else if !br.IsNotExist(err) {
+		t.Fatal(err)
+	}
+	err = BridgeAdd(brName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	br, err = BridgeGetByName(brName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = BridgeDelete(brName)
+	if err != nil {
 		t.Fatal(err)
 	}
 }
