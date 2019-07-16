@@ -63,72 +63,78 @@ func testVrfDelete(t *testing.T, vrf *Vrf) {
 	}
 }
 
-func testVethAdd(t *testing.T) Veth {
+func testVethAdd(t *testing.T) *Veth {
 	var (
-		veth Veth
-		i    int
+		vethName string
+		peerName string
+		i        int
 	)
 
 	for i = 0; true; i++ {
-		veth.Name = fmt.Sprintf("foo%02d-bar%02d", i, i)
-		veth.Peer = fmt.Sprintf("bar%02d-foo%02d", i, i)
-		if ve, err := VethGetByName(veth.Name); err == nil {
-			if veth.Name != ve.Name {
-				t.Fatalf("%s, %s", veth.Name, ve.Name)
+		vethName = fmt.Sprintf("foo%02d-bar%02d", i, i)
+		peerName = fmt.Sprintf("bar%02d-foo%02d", i, i)
+		if veth, err := VethGetByName(vethName); err == nil {
+			if vethName != veth.Name() {
+				t.Fatalf("%s, %s", vethName, veth.Name())
 			}
-			if veth.Peer != ve.Peer {
-				t.Fatalf("%s, %s", veth.Peer, ve.Peer)
+			if peerName != veth.PeerName() {
+				t.Fatalf("%s, %s", peerName, veth.PeerName())
 			}
-			t.Logf("veth pair %s - %s already exists.", ve.Name, ve.Peer)
-		} else if ve.IsNotFound(err) {
-			t.Logf("veth pair %s - %s doesn't exist.", veth.Name, veth.Peer)
+			t.Logf("veth pair %s - %s already exists.",
+				veth.Name(), veth.PeerName())
+			if err := VethDelete(vethName); err != nil {
+				t.Fatal(err)
+			}
+		} else if veth.IsNotFound(err) {
+			t.Logf("veth pair %s - %s doesn't exist.", vethName, peerName)
 			break
 		} else {
 			t.Fatal(err)
 		}
 	}
 
-	t.Logf("Adding veth pair: %s - %s...", veth.Name, veth.Peer)
-	if ve, err := VethAdd(veth.Name, veth.Peer, false); err == nil {
-		if ve.Name != veth.Name {
-			t.Fatalf("%s: %s", ve.Name, veth.Name)
+	t.Logf("Adding veth pair: %s - %s...", vethName, peerName)
+	if veth, err := VethAdd(vethName, peerName, false); err == nil {
+		if veth.Name() != vethName {
+			t.Fatalf("%s: %s", veth.Name(), vethName)
 		}
-		if ve.Peer != veth.Peer {
-			t.Fatalf("%s: %s", ve.Peer, veth.Peer)
+		if veth.PeerName() != peerName {
+			t.Fatalf("%s: %s", veth.PeerName(), peerName)
 		}
-		if r, err := VethGetByName(veth.Peer); err == nil {
-			if r.Name == veth.Peer && r.Peer == veth.Name {
-				if r.TxQlen != DefaultTxQlen {
-					t.Logf("  TxQlen: %d - %d\n", DefaultTxQlen, r.TxQlen)
+		if peer, err := VethGetByName(peerName); err == nil {
+			if peer.Name() == peerName && peer.PeerName() == vethName {
+				if peer.TxQlen() != DefaultTxQlen {
+					t.Logf("  TxQlen: %d - %d\n", DefaultTxQlen, peer.TxQlen())
 				}
-				if r.MTU != DefaultMTU {
-					t.Logf("  MTU: %d - %d\n", DefaultMTU, r.MTU)
+				if peer.MTU() != DefaultMTU {
+					t.Logf("  MTU: %d - %d\n", DefaultMTU, peer.MTU())
 				}
 				t.Logf("confirmed.")
+				return veth
 			} else {
-				t.Fatalf("Error: in: %s - %s, out: %s - %s",
-					veth.Name, veth.Peer, r.Peer, r.Name)
+				t.Fatalf("in: %s - %s, out: %s - %s",
+					vethName, peerName, peer.PeerName(), peer.Name())
 			}
 		} else {
-			t.Fatalf("Error: VethGetByName(%s): %v", veth.Peer, err)
+			t.Fatalf("VethGetByName(%s): %v", peerName, err)
 		}
 	} else {
-		t.Fatalf("Error: VethAdd(%s, %s): %v", veth.Name, veth.Peer, err)
+		t.Fatalf("VethAdd(%s, %s): %v", vethName, peerName, err)
 	}
-	return veth
+	return nil
 }
 
 func testVethDelete(t *testing.T, veth *Veth) {
-	t.Logf("Deleting veth pair %s - %s... ", veth.Name, veth.Peer)
+	t.Logf("Deleting veth pair %s - %s... ", veth.Name(), veth.PeerName())
 
-	if _, err := VethGetByName(veth.Peer); err == nil {
-		if err := VethDelete(veth.Peer); err == nil {
+	if _, err := VethGetByName(veth.PeerName()); err == nil {
+		if err := VethDelete(veth.PeerName()); err == nil {
 			t.Logf("confirmed.")
 		} else {
-			t.Fatalf("Error: VethDelete(%s): %v", veth.Peer, err)
+			t.Fatalf("Error: VethDelete(%s): %v", veth.PeerName(), err)
 		}
 	} else {
-		t.Fatalf("Error: VethGetByName(%s): no such veth exists.", veth.Peer)
+		t.Fatalf("VethGetByName(%s): no such veth exists.", veth.PeerName())
 	}
 }
 
@@ -143,8 +149,8 @@ func testVlanDelete(t *testing.T, vlan string) {
 
 func testIpAddrAdd(t *testing.T, veth *Veth, vlanId uint16, ifa []string) {
 	names := []string{
-		fmt.Sprintf("%s.%d", veth.Name, vlanId),
-		fmt.Sprintf("%s.%d", veth.Peer, vlanId),
+		fmt.Sprintf("%s.%d", veth.Name(), vlanId),
+		fmt.Sprintf("%s.%d", veth.PeerName(), vlanId),
 	}
 	for i, name := range names {
 		t.Logf("Adding %s to %s", ifa[i], name)
@@ -187,7 +193,7 @@ func testRename(t *testing.T, vrf *Vrf, name string) {
 	}
 }
 
-func vrfVethVlanAdd(t *testing.T, vlanId uint16) (*Vrf, Veth) {
+func vrfVethVlanAdd(t *testing.T, vlanId uint16) (*Vrf, *Veth) {
 	var vlanIfs []string
 
 	// 1. Create a vrf
@@ -215,7 +221,7 @@ func vrfVethVlanAdd(t *testing.T, vlanId uint16) (*Vrf, Veth) {
 	// 3. Bring them up
 	//
 	veth := testVethAdd(t)
-	for _, name := range []string{veth.Name, veth.Peer} {
+	for _, name := range []string{veth.Name(), veth.PeerName()} {
 		if ok, err := IfIsUpByName(name); err == nil {
 			if ok {
 				t.Errorf("Error: %s should be down", name)
@@ -241,8 +247,8 @@ func vrfVethVlanAdd(t *testing.T, vlanId uint16) (*Vrf, Veth) {
 	// 2. Make sure they are down
 	// 3. Bring them up
 	//
-	if s, err := VlanAdd(veth.Name, vlanId); err == nil {
-		exp := fmt.Sprintf("%s.%d", veth.Name, vlanId)
+	if s, err := VlanAdd(veth.Name(), vlanId); err == nil {
+		exp := fmt.Sprintf("%s.%d", veth.Name(), vlanId)
 		if s == exp {
 			vlanIfs = append(vlanIfs, s)
 			if ok, err := IfIsUpByName(s); err == nil {
@@ -256,10 +262,10 @@ func vrfVethVlanAdd(t *testing.T, vlanId uint16) (*Vrf, Veth) {
 			t.Errorf("Error: %s: should be %s", s, exp)
 		}
 	} else {
-		t.Errorf("Error: VlanAdd(%d, %s): %v", vlanId, veth.Name, err)
+		t.Errorf("Error: VlanAdd(%d, %s): %v", vlanId, veth.Name(), err)
 	}
-	if s, err := VlanAdd(veth.Peer, vlanId); err == nil {
-		exp := fmt.Sprintf("%s.%d", veth.Peer, vlanId)
+	if s, err := VlanAdd(veth.PeerName(), vlanId); err == nil {
+		exp := fmt.Sprintf("%s.%d", veth.PeerName(), vlanId)
 		if s == exp {
 			vlanIfs = append(vlanIfs, s)
 			if ok, err := IfIsUpByName(s); err == nil {
@@ -273,7 +279,7 @@ func vrfVethVlanAdd(t *testing.T, vlanId uint16) (*Vrf, Veth) {
 			t.Errorf("Error: %s: should be %s", s, exp)
 		}
 	} else {
-		t.Errorf("Error: VlanAdd(%d, %s): %v", vlanId, veth.Peer, err)
+		t.Errorf("Error: VlanAdd(%d, %s): %v", vlanId, veth.PeerName(), err)
 	}
 
 	for _, name := range vlanIfs {
@@ -443,14 +449,14 @@ func TestVrf(t *testing.T) {
 	if vrf, err = VrfGetByName(newVrfName); err != nil {
 		t.Fatal(err)
 	}
-	testIpAddrAdd(t, &veth, vlanId, ifAddrs)
-	vifName := fmt.Sprintf("%s.%d", veth.Name, vlanId)
+	testIpAddrAdd(t, veth, vlanId, ifAddrs)
+	vifName := fmt.Sprintf("%s.%d", veth.Name(), vlanId)
 	testPing(t, vrf, ifAddrs)
 	testRoutes(t, vrf, "192.168.1.0/24", "172.16.1.3")
 
 	testVlanDelete(t, vifName)
 	testVrfDelete(t, vrf)
-	testVethDelete(t, &veth)
+	testVethDelete(t, veth)
 }
 
 func TestSetOnlink(t *testing.T) {
@@ -469,7 +475,7 @@ func TestBridge(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-	} else if !br.IsNotExist(err) {
+	} else if !br.IsNotFound(err) {
 		t.Fatal(err)
 	}
 	err = BridgeAdd(brName)

@@ -172,7 +172,7 @@ func (br *Bridge) AddIfByName(ifName string) error {
 	return nil
 }
 
-func (br *Bridge) IsNotExist(err error) bool {
+func (br *Bridge) IsNotFound(err error) bool {
 	re := regexp.MustCompile(`not found`)
 	if re.MatchString(fmt.Sprint(err)) {
 		return true

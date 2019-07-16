@@ -103,28 +103,3 @@ func IfUnsetNS(ifName, nsName string) error {
 	}
 	return fmt.Errorf(errMsg)
 }
-
-// SetNS bind veth `v' to network namespace `nsName'
-// in: nsName Name of the network namespace to bind `v'
-// return nil if success
-//        non-nil otherwise
-func (v *Veth) SetNS(nsName string, up bool) error {
-	return IfSetNS(v.Name, nsName)
-}
-
-// SetNSbyPid bind veth `v' to network namespace whose process ID is `pid'
-// in: nsName Name of the network namespace to bind `v'
-// return nil if success
-//        non-nil otherwise
-func (v *Veth) SetNSbyPid(pid int) error {
-	return IfSetNSbyPid(v.Name, pid)
-}
-
-// UnsetNS unbinds veth `v' from network namespace whose
-// process ID is `pid'
-// in: nsName Name of the network namespace to unbind `v'
-// return nil if success
-//        non-nil otherwise
-func (v *Veth) UnsetNS(nsName string) error {
-	return IfUnsetNS(v.Name, nsName)
-}
