@@ -63,9 +63,8 @@ func bridgeModify(name string, op bool, up bool) (*Bridge, error) {
 		if op == add {
 			if br, err := BridgeGetByName(name); err == nil {
 				if up {
-					br.IfUp()
+					return br, br.IfUp()
 				}
-				return br, nil
 			} else {
 				return nil, err
 			}

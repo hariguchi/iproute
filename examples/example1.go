@@ -55,7 +55,7 @@ func addNetwork() {
 	banner := "addNetwork(): "
 	veth, err := iproute.VethGetByName(veth0)
 	if err != nil {
-		if veth.IsNotFound(err) {
+		if iproute.IsNotFound(err) {
 			if veth, err = iproute.VethAdd(veth0, veth1, true); err != nil {
 				s := fmt.Sprintf("%saddNetwork(): %v", banner, err)
 				errExit(s)
@@ -76,15 +76,15 @@ func addNetwork() {
 	}
 	defer d2.Close()
 
-	if err := iproute.IfSetNS(veth.Name, ns1); err != nil {
+	if err := iproute.IfSetNS(veth.Name(), ns1); err != nil {
 		deleteNetwork()
 		errExit(fmt.Sprintf(
-			"%sIfSetNs(%s, %s): %v", banner, veth.Name, ns1, err))
+			"%sIfSetNs(%s, %s): %v", banner, veth.Name(), ns1, err))
 	}
-	if err := iproute.IfSetNS(veth.Peer, ns2); err != nil {
+	if err := iproute.IfSetNS(veth.PeerName(), ns2); err != nil {
 		deleteNetwork()
 		errExit(fmt.Sprintf(
-			"%sIfSetNs(%s, %s): %v", banner, veth.Peer, ns2, err))
+			"%sIfSetNs(%s, %s): %v", banner, veth.PeerName(), ns2, err))
 	}
 	orig, err = netns.Get()
 	if err != nil {
