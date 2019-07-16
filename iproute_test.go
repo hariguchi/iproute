@@ -27,16 +27,12 @@ func testVrfAdd(t *testing.T) *Vrf {
 		}
 	}
 	t.Logf("Adding VRF %s (tid %d)... ", vrfName, tid)
-	if err := VrfAdd(vrfName, tid); err == nil {
-		if vrf, err := VrfGetByName(vrfName); err == nil {
-			if vrf.Name() == vrfName && vrf.Tid() == tid {
-				t.Logf("confirmed.")
-				return vrf
-			} else {
-				t.Fatalf("Error: VRF %s (tid %d)", vrf.Name(), vrf.Tid())
-			}
+	if vrf, err := VrfAdd(vrfName, tid, down); err == nil {
+		if vrf.Name() == vrfName && vrf.Tid() == tid {
+			t.Logf("confirmed.")
+			return vrf
 		} else {
-			t.Fatalf("Error: no such VRF exists.")
+			t.Fatalf("Error: VRF %s (tid %d)", vrf.Name(), vrf.Tid())
 		}
 	} else {
 		t.Fatalf("Error: failed to add.")
@@ -85,8 +81,7 @@ func testVethAdd(t *testing.T) *Veth {
 			if err := VethDelete(vethName); err != nil {
 				t.Fatal(err)
 			}
-		} else if veth.IsNotFound(err) {
-			t.Logf("veth pair %s - %s doesn't exist.", vethName, peerName)
+		} else if IsNotFound(err) {
 			break
 		} else {
 			t.Fatal(err)
@@ -467,7 +462,16 @@ func TestSetOnlink(t *testing.T) {
 }
 
 func TestBridge(t *testing.T) {
-	brName := "br_test"
+	var (
+		veth [2]*Veth
+		vrf  [2]*Vrf
+	)
+	brName := "brTest1"
+	vethPair := [2][2]string{
+		{"br-vrf1", "vrf1-br"},
+		{"br-vrf2", "vrf2-br"},
+	}
+
 	br, err := BridgeGetByName(brName)
 	if err == nil {
 		t.Logf("bridge %s already exists. Deletes it", br.Name())
@@ -475,16 +479,63 @@ func TestBridge(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-	} else if !br.IsNotFound(err) {
+	} else if !IsNotFound(err) {
 		t.Fatal(err)
 	}
-	err = BridgeAdd(brName)
+	br, err = BridgeAdd(brName, up)
 	if err != nil {
 		t.Fatal(err)
 	}
-	br, err = BridgeGetByName(brName)
-	if err != nil {
+	if err := br.IfUp(); err != nil {
 		t.Fatal(err)
+	}
+	for i := 0; i < len(veth); i++ {
+		veth[i], err = VethGetByName(vethPair[i][0])
+		if veth[i] == nil {
+			veth[i], err = VethAdd(vethPair[i][0], vethPair[i][1], up)
+			if err != nil {
+				t.Fatal(err)
+			}
+		} else if err == nil {
+			t.Logf("veth pair (%s, %s) already exists",
+				veth[i].Name(), veth[i].PeerName())
+		} else {
+			t.Fatal(err)
+		}
+		vrfName := fmt.Sprintf("vrf%d", i+1)
+		vrf[i], _ = VrfGetByName(vrfName)
+		if vrf[i] == nil {
+			vrf[i], err = VrfAdd(vrfName, uint32(i+1), up)
+			if err != nil {
+				t.Fatal(err)
+			}
+		} else if err == nil {
+			t.Logf("VRF %s already exists", vrf[i].Name())
+		} else {
+			t.Fatal(err)
+		}
+	}
+	for i := 0; i < len(vethPair); i++ {
+		err = br.BindIntf(vethPair[i][1])
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i := 0; i < len(vethPair); i++ {
+		err = IfUnbind(vethPair[i][0])
+		if err != nil {
+			t.Errorf("%s: %v", vethPair[i][0], err)
+		}
+		err = VethDelete(vethPair[i][0])
+		if err != nil {
+			t.Errorf("%s: %v", vethPair[i][0], err)
+		}
+	}
+	for i := 0; i < len(vrf); i++ {
+		err = VrfDelete(vrf[i].Name())
+		if err != nil {
+			t.Errorf("%s: %v", vrf[i].Name(), err)
+		}
 	}
 	err = BridgeDelete(brName)
 	if err != nil {

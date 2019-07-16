@@ -69,11 +69,22 @@ func VrfGetByName(name string) (*Vrf, error) {
 //     tid Table ID for VRF `name'
 // return: nil if success
 //         non-nil otherwise
-func VrfAdd(name string, tid uint32) error {
-	return netlink.LinkAdd(&netlink.Vrf{
+func VrfAdd(name string, tid uint32, up bool) (*Vrf, error) {
+	err := netlink.LinkAdd(&netlink.Vrf{
 		LinkAttrs: netlink.LinkAttrs{Name: name},
 		Table:     uint32(tid),
 	})
+	if err != nil {
+		return nil, err
+	}
+	if vrf, err := VrfGetByName(name); err == nil {
+		if up {
+			vrf.IfUp()
+		}
+		return vrf, nil
+	} else {
+		return nil, err
+	}
 }
 
 // VrfDelete deletes VRF whose name is `name'
@@ -246,6 +257,14 @@ func (vrf *Vrf) Index() int {
 
 func (vrf *Vrf) Tid() uint32 {
 	return vrf.Link.Table
+}
+
+func (vrf *Vrf) IfUp() error {
+	return netlink.LinkSetUp(vrf.Link)
+}
+
+func (vrf *Vrf) IfDown() error {
+	return netlink.LinkSetDown(vrf.Link)
 }
 
 // VrfBindIntf binds an interface to a VRF

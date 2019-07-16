@@ -19,7 +19,6 @@ package iproute
 import (
 	"fmt"
 	"github.com/vishvananda/netlink"
-	"regexp"
 )
 
 type Veth struct {
@@ -157,18 +156,6 @@ func VethAdd(name, peer string, up bool) (*Veth, error) {
 //         non-nil otherwise
 func VethDelete(name string) error {
 	return LinkDel(name)
-}
-
-// IsNotFound returns true if `err' contains "not found"
-// in: err Error from VethGetByName()
-// return: true if err contains "not found"
-//         false otherwise
-func (v *Veth) IsNotFound(err error) bool {
-	re := regexp.MustCompile(`not found`)
-	if re.MatchString(fmt.Sprint(err)) {
-		return true
-	}
-	return false
 }
 
 // SetNS bind veth `v' to network namespace `nsName'

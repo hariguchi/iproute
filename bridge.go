@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
-	"regexp"
 	"syscall"
 	"unsafe"
 )
@@ -32,11 +31,6 @@ const (
 	BRCTL_DEL_BRIDGE
 )
 
-const (
-	add = true
-	del = false
-)
-
 type Bridge struct {
 	Link *netlink.Bridge
 }
@@ -45,7 +39,7 @@ func getBridgeSock() (int, error) {
 	return syscall.Socket(unix.AF_LOCAL, unix.SOCK_STREAM, 0)
 }
 
-func bridgeModify(name string, op bool) error {
+func bridgeModify(name string, op bool, up bool) (*Bridge, error) {
 	banner := fmt.Sprintf("BridgeAdd(%s): ", name)
 	var arg [3]uint64
 	var brName [unix.IFNAMSIZ]byte
@@ -66,13 +60,24 @@ func bridgeModify(name string, op bool) error {
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(s),
 		unix.SIOCSIFBR, uintptr(unsafe.Pointer(&arg)))
 	if errno == 0 {
-		return nil
+		if op == add {
+			if br, err := BridgeGetByName(name); err == nil {
+				if up {
+					br.IfUp()
+				}
+				return br, nil
+			} else {
+				return nil, err
+			}
+		} else {
+			return nil, nil
+		}
 	}
-	return fmt.Errorf("%s%v\n", banner, errno)
+	return nil, fmt.Errorf("%s%v\n", banner, errno)
 }
 
-func BridgeAdd(name string) error {
-	return bridgeModify(name, add)
+func BridgeAdd(name string, up bool) (*Bridge, error) {
+	return bridgeModify(name, add, up)
 }
 
 func BridgeDelete(name string) error {
@@ -81,11 +86,12 @@ func BridgeDelete(name string) error {
 	if err != nil {
 		return fmt.Errorf("%sBridgeGetByName(): %v", banner, err)
 	}
-	err = netlink.LinkSetDown(br.Link)
+	err = br.IfDown()
 	if err != nil {
 		return fmt.Errorf("%sLinkSetDown(): %v", banner, err)
 	}
-	return bridgeModify(name, del)
+	_, err = bridgeModify(name, del, down)
+	return err
 }
 
 func BridgeGetByName(name string) (*Bridge, error) {
@@ -130,22 +136,12 @@ func BridgeList() ([]Bridge, error) {
 	return brs, nil
 }
 
-func BridgeAddIfByName(brName, ifName string) error {
-	banner := fmt.Sprintf("BridgeAddIfByName(%s, %s): ", brName, ifName)
+func BridgeBindIntf(brName, ifName string) error {
+	banner := fmt.Sprintf("BridgeBindIntf(%s, %s): ", brName, ifName)
 	if br, err := BridgeGetByName(brName); err == nil {
-		return br.AddIfByName(ifName)
+		return br.BindIntf(ifName)
 	} else {
 		return fmt.Errorf("%sBridgeGetByName(): %v", banner, err)
-	}
-	return nil
-}
-
-func BridgeDeleteIfByName(ifName string) error {
-	banner := fmt.Sprintf("BridgeDeleteIfByName(%s): ", ifName)
-	if l, err := netlink.LinkByName(ifName); err == nil {
-		return netlink.LinkSetNoMaster(l)
-	} else {
-		return fmt.Errorf("%sLinkByName(): %v", banner, err)
 	}
 	return nil
 }
@@ -162,20 +158,12 @@ func (br *Bridge) IfDown() error {
 	return netlink.LinkSetDown(br.Link)
 }
 
-func (br *Bridge) AddIfByName(ifName string) error {
-	banner := fmt.Sprintf("AddIfByName(%s, %s): ", br.Name(), ifName)
+func (br *Bridge) BindIntf(ifName string) error {
+	banner := fmt.Sprintf("BindIntf(%s, %s): ", br.Name(), ifName)
 	if l, err := netlink.LinkByName(ifName); err == nil {
 		return netlink.LinkSetMaster(l, br.Link)
 	} else {
 		return fmt.Errorf("%sLinkByName(): %v", banner, err)
 	}
 	return nil
-}
-
-func (br *Bridge) IsNotFound(err error) bool {
-	re := regexp.MustCompile(`not found`)
-	if re.MatchString(fmt.Sprint(err)) {
-		return true
-	}
-	return false
 }

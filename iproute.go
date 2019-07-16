@@ -22,6 +22,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 	"net"
+	"regexp"
 )
 
 const (
@@ -62,6 +63,13 @@ const (
 	SCOPE_LINK             = netlink.SCOPE_LINK
 	SCOPE_HOST             = netlink.SCOPE_HOST
 	SCOPE_NOWHERE          = netlink.SCOPE_NOWHERE
+)
+
+const (
+	add  = true
+	del  = false
+	up   = true
+	down = false
 )
 
 type Link = netlink.Link
@@ -108,4 +116,12 @@ func IPNetEqual(a, b *net.IPNet) bool {
 	} else {
 		return false
 	}
+}
+
+func IsNotFound(err error) bool {
+	re := regexp.MustCompile(`not found`)
+	if re.MatchString(fmt.Sprint(err)) {
+		return true
+	}
+	return false
 }
