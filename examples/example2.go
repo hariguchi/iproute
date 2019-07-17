@@ -1,5 +1,5 @@
 /*
-   Usage: example <add | delete>
+   Usage: example2 <add | delete>
 
 
    Add or delete the following network namespaces
@@ -31,7 +31,7 @@ const (
 	ns2      = "ns2"
 	veth0    = "ns1-ns2"
 	veth1    = "ns2-ns1"
-	usageStr = "Usage: example <add | delete>"
+	usageStr = "Usage: example2 <add | delete>"
 	ns1ns2a  = "192.168.1.1/24"
 	ns2ns1a  = "192.168.1.2/24"
 )

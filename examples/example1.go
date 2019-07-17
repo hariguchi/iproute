@@ -1,5 +1,5 @@
 /*
-   Usage: example <add | delete>
+   Usage: example1 <add | delete>
 
 
    Add or delete the following network namespaces
