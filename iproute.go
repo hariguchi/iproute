@@ -66,10 +66,12 @@ const (
 )
 
 const (
-	add  = true
-	del  = false
-	up   = true
-	down = false
+	Add  = true
+	Del  = false
+	Up   = true
+	Down = false
+	Self = true
+	Peer = false
 )
 
 type Link = netlink.Link
@@ -118,10 +120,18 @@ func IPNetEqual(a, b *net.IPNet) bool {
 	}
 }
 
-func IsNotFound(err error) bool {
-	re := regexp.MustCompile(`not found`)
+func isThisInError(s string, err error) bool {
+	re := regexp.MustCompile(s)
 	if re.MatchString(fmt.Sprint(err)) {
 		return true
 	}
 	return false
+}
+
+func IsExist(err error) bool {
+	return isThisInError(`(already|file) exists`, err)
+}
+
+func IsNotFound(err error) bool {
+	return isThisInError(`not found`, err)
 }

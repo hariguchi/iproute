@@ -51,7 +51,7 @@ func bridgeModify(name string, op bool, up bool) (*Bridge, error) {
 	defer syscall.Close(s)
 
 	copy(brName[:unix.IFNAMSIZ-1], name)
-	if op == add {
+	if op == Add {
 		arg[0] = BRCTL_ADD_BRIDGE
 	} else {
 		arg[0] = BRCTL_DEL_BRIDGE
@@ -60,7 +60,7 @@ func bridgeModify(name string, op bool, up bool) (*Bridge, error) {
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(s),
 		unix.SIOCSIFBR, uintptr(unsafe.Pointer(&arg)))
 	if errno == 0 {
-		if op == add {
+		if op == Add {
 			if br, err := BridgeGetByName(name); err == nil {
 				if up {
 					return br, br.IfUp()
@@ -76,7 +76,7 @@ func bridgeModify(name string, op bool, up bool) (*Bridge, error) {
 }
 
 func BridgeAdd(name string, up bool) (*Bridge, error) {
-	return bridgeModify(name, add, up)
+	return bridgeModify(name, Add, up)
 }
 
 func BridgeDelete(name string) error {
@@ -89,7 +89,7 @@ func BridgeDelete(name string) error {
 	if err != nil {
 		return fmt.Errorf("%sLinkSetDown(): %v", banner, err)
 	}
-	_, err = bridgeModify(name, del, down)
+	_, err = bridgeModify(name, Del, Down)
 	return err
 }
 

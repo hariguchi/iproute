@@ -19,6 +19,7 @@ package iproute
 import (
 	"fmt"
 	"github.com/vishvananda/netlink"
+	"net"
 )
 
 type Veth struct {
@@ -181,6 +182,74 @@ func (v *Veth) SetNSbyPid(pid int) error {
 //        non-nil otherwise
 func (v *Veth) UnsetNS(nsName string) error {
 	return IfUnsetNS(v.Name(), nsName)
+}
+
+// IpAddrAdd adds an IP prefix to either this or peer interface.
+// in: intf Add `addr' to this interface if true
+//          Add `addr' to the peer interface if false
+//     addr IP prefix (IPv4 or IPv6)
+//     up Bring up the interface if true
+//        Do nothing otherwise
+// return: nil if success
+//         non-nil otherwise
+func (v *Veth) IpAddrAdd(intf bool, addr *net.IPNet, up bool) error {
+	var l netlink.Link
+
+	if intf == Self {
+		l = v.Link
+	} else {
+		l = v.Peer
+	}
+	if err := netlink.AddrAdd(l, &netlink.Addr{IPNet: addr}); err != nil {
+		return err
+	}
+	if up {
+		return netlink.LinkSetUp(l)
+	}
+	return nil
+}
+
+// IpAddrReplace replaces (or adds unless present) an IP prefix to
+// either this or peer interface.
+// in: intf Add `addr' to this interface if true
+//          Add `addr' to the peer interface if false
+//     addr IP prefix (IPv4 or IPv6)
+//     up Bring up the interface if true
+//        Do nothing otherwise
+// return: nil if success
+//         non-nil otherwise
+func (v *Veth) IpAddrReplace(intf bool, addr *net.IPNet, up bool) error {
+	var l netlink.Link
+
+	if intf == Self {
+		l = v.Link
+	} else {
+		l = v.Peer
+	}
+	if err := netlink.AddrReplace(l, &netlink.Addr{IPNet: addr}); err != nil {
+		return err
+	}
+	if up {
+		return netlink.LinkSetUp(l)
+	}
+	return nil
+}
+
+// IpAddrAdd deletes the IP prefix from either this or peer interface.
+// in: intf Delete `addr' from this interface if true
+//          Delete `addr' from the peer interface if false
+//     addr IP prefix (IPv4 or IPv6)
+// return: nil if success
+//         non-nil otherwise
+func (v *Veth) IpAddrDelete(intf bool, addr *net.IPNet) error {
+	var l netlink.Link
+
+	if intf == Self {
+		l = v.Link
+	} else {
+		l = v.Peer
+	}
+	return netlink.AddrDel(l, &netlink.Addr{IPNet: addr})
 }
 
 func (v *Veth) Name() string {

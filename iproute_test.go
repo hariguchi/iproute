@@ -27,7 +27,7 @@ func testVrfAdd(t *testing.T) *Vrf {
 		}
 	}
 	t.Logf("Adding VRF %s (tid %d)... ", vrfName, tid)
-	if vrf, err := VrfAdd(vrfName, tid, down); err == nil {
+	if vrf, err := VrfAdd(vrfName, tid, Down); err == nil {
 		if vrf.Name() == vrfName && vrf.Tid() == tid {
 			t.Logf("confirmed.")
 			return vrf
@@ -482,7 +482,7 @@ func TestBridge(t *testing.T) {
 	} else if !IsNotFound(err) {
 		t.Fatal(err)
 	}
-	br, err = BridgeAdd(brName, up)
+	br, err = BridgeAdd(brName, Up)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -492,7 +492,7 @@ func TestBridge(t *testing.T) {
 	for i := 0; i < len(veth); i++ {
 		veth[i], err = VethGetByName(vethPair[i][0])
 		if veth[i] == nil {
-			veth[i], err = VethAdd(vethPair[i][0], vethPair[i][1], up)
+			veth[i], err = VethAdd(vethPair[i][0], vethPair[i][1], Up)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -505,7 +505,7 @@ func TestBridge(t *testing.T) {
 		vrfName := fmt.Sprintf("vrf%d", i+1)
 		vrf[i], _ = VrfGetByName(vrfName)
 		if vrf[i] == nil {
-			vrf[i], err = VrfAdd(vrfName, uint32(i+1), up)
+			vrf[i], err = VrfAdd(vrfName, uint32(i+1), Up)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -185,6 +185,14 @@ func IfUnbind(ifName string) error {
 	}
 }
 
+// IfDelete deletes the interface whose name is `name'
+// in: name Name of an interface
+// return: nil if success
+//         non-nil otherwise
+func IfDelete(name string) error {
+	return LinkDel(name)
+}
+
 // IsTunnelByIndex returns true if theh specified interface is a
 // tunnel interface.
 // in: ifindex Ifindex of the interface to test

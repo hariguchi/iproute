@@ -277,5 +277,4 @@ func (vrf *Vrf) BindIf(ifName string) error {
 	} else {
 		return fmt.Errorf("LinkByName(%s): %v", ifName, err)
 	}
-
 }
