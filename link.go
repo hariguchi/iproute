@@ -193,6 +193,28 @@ func IfDelete(name string) error {
 	return LinkDel(name)
 }
 
+func IfExists(name string) (bool, error) {
+	return ifExists(name, nil)
+}
+
+func ifExists(name string, kind netlink.Link) (bool, error) {
+	l, err := LinkByName(name)
+	if err == nil {
+		if kind == nil {
+			return true, nil
+		}
+		if l.Type() == kind.Type() {
+			return true, nil
+		}
+		return false, nil
+	} else {
+		if IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+}
+
 // IsTunnelByIndex returns true if theh specified interface is a
 // tunnel interface.
 // in: ifindex Ifindex of the interface to test

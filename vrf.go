@@ -95,6 +95,10 @@ func VrfDelete(name string) error {
 	return LinkDel(name)
 }
 
+func VrfIfExists(name string) (bool, error) {
+	return ifExists(name, &netlink.Vrf{})
+}
+
 // VrfBindIf binds an interface to a VRF
 // in: vrfName Name of VRF
 //     ifName Name of interface to be bound to VRF `vrfName'

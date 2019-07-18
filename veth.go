@@ -159,6 +159,10 @@ func VethDelete(name string) error {
 	return LinkDel(name)
 }
 
+func VethIfExists(name string) (bool, error) {
+	return ifExists(name, &netlink.Veth{})
+}
+
 // SetNS bind veth `v' to network namespace `nsName'
 // in: nsName Name of the network namespace to bind `v'
 // return nil if success

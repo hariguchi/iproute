@@ -39,6 +39,15 @@ func getBridgeSock() (int, error) {
 	return syscall.Socket(unix.AF_LOCAL, unix.SOCK_STREAM, 0)
 }
 
+// bridgeModify adds or deletes a bridge
+// in: name Name of the bridge to be added or deleted
+//     op Add (true) to add a bridge whose name is `name'
+//        Delete (false) to delete a bridge whose name is `name'
+//     up Up (true) to bring up the bridge after addition
+// return: 1. Pointer to bridge if it is successfully added
+//            nil otherwise
+//         2. nil if success
+//            non-nil otherwise
 func bridgeModify(name string, op bool, up bool) (*Bridge, error) {
 	banner := fmt.Sprintf("BridgeAdd(%s): ", name)
 	var arg [3]uint64
@@ -75,10 +84,21 @@ func bridgeModify(name string, op bool, up bool) (*Bridge, error) {
 	return nil, fmt.Errorf("%s%v\n", banner, errno)
 }
 
+// BridgeAdd adds a bridge whose name is `name'
+// in: name Name of the bridge to be added
+//     up Up (true) to bring up the bridge after addition
+// return: 1. Pointer to bridge if it is successfully added
+//            nil otherwise
+//         2. nil if success
+//            non-nil otherwise
 func BridgeAdd(name string, up bool) (*Bridge, error) {
 	return bridgeModify(name, Add, up)
 }
 
+// BridgeDelete deletes a bridge whose name is `name'
+// in: name Name of the bridge to be deleted
+// return: nil if success
+//         non-nil otherwise
 func BridgeDelete(name string) error {
 	banner := fmt.Sprintf("BridgeDelete(%s): ", name)
 	br, err := BridgeGetByName(name)
@@ -93,6 +113,13 @@ func BridgeDelete(name string) error {
 	return err
 }
 
+// BridgeGetByName returns a pointer to Bridge if bridge
+// whose name is `name' exists.
+// in: name Name of the bridge to be examined
+// return: 1. Pointer to bridge if bridge whose name is `name' exists
+//            nil otherwise
+//         2. nil if bridge whose name is `name' exists
+//            non-nil otherwise
 func BridgeGetByName(name string) (*Bridge, error) {
 	if l, err := netlink.LinkByName(name); err == nil {
 		switch l := l.(type) {
@@ -106,6 +133,13 @@ func BridgeGetByName(name string) (*Bridge, error) {
 	}
 }
 
+// BridgeGetByName returns a pointer to Bridge if bridge
+// whose ifindex is `i' exists
+// in: i Ifindex of the bridge to be examined
+// return: 1. Pointer to bridge if bridge whose ifindex is `i' exists
+//            nil otherwise
+//         2. nil if bridge whose ifindex is `i' exists
+//            non-nil otherwise
 func BridgeGetByIndex(i int) (*Bridge, error) {
 	if l, err := netlink.LinkByIndex(i); err == nil {
 		switch l := l.(type) {
@@ -133,6 +167,10 @@ func BridgeList() ([]Bridge, error) {
 		}
 	}
 	return brs, nil
+}
+
+func BridgeIfExists(name string) (bool, error) {
+	return ifExists(name, &netlink.Bridge{})
 }
 
 func BridgeBindIf(brName, ifName string) error {
