@@ -153,6 +153,10 @@ func BridgeGetByIndex(i int) (*Bridge, error) {
 	}
 }
 
+// BridgeList returns a slice of Bridge
+// return: 1. Slice of Bridge if success
+//         2. nil if bridge whose ifindex is `i' exists
+//            non-nil otherwise
 func BridgeList() ([]Bridge, error) {
 	banner := "BridgeList(): "
 	var brs []Bridge
@@ -169,10 +173,18 @@ func BridgeList() ([]Bridge, error) {
 	return brs, nil
 }
 
+// BridgeIfExists returns true if bridge `name' exists
+// return: 1. true if bridge `name' exists
+//            false otherwise
+//         2. nil if bridge whose name is `name' exists
+//            non-nil otherwise
 func BridgeIfExists(name string) (bool, error) {
 	return ifExists(name, &netlink.Bridge{})
 }
 
+// BridgeBindIf add interface `ifName' to bridge `brName'
+// return: nil if bridge whose name is `name' exists
+//         non-nil otherwise
 func BridgeBindIf(brName, ifName string) error {
 	banner := fmt.Sprintf("BridgeBindIf(%s, %s): ", brName, ifName)
 	if br, err := BridgeGetByName(brName); err == nil {
@@ -183,18 +195,26 @@ func BridgeBindIf(brName, ifName string) error {
 	return nil
 }
 
+// Name returns the name of this bridge
 func (br *Bridge) Name() string {
 	return br.Link.Attrs().Name
 }
 
+// Ifup brings up this bridge interface
 func (br *Bridge) IfUp() error {
 	return netlink.LinkSetUp(br.Link)
 }
 
+// Ifup brings down this bridge interface
+// return: nil if the bridge whose name is `name' exists
+//         non-nil otherwise
 func (br *Bridge) IfDown() error {
 	return netlink.LinkSetDown(br.Link)
 }
 
+// BindIf adds interface `ifName' to this bridge
+// return: nil if success
+//         non-nil otherwise
 func (br *Bridge) BindIf(ifName string) error {
 	banner := fmt.Sprintf("BindIf(%s, %s): ", br.Name(), ifName)
 	if l, err := netlink.LinkByName(ifName); err == nil {
