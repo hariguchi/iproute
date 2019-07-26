@@ -78,7 +78,8 @@ func VethGetPeerLinkByName(name string) (*netlink.Veth, error) {
 // VethGetByName returns a pointer to Veth whose name is `name'
 // in: name Name of veth interface
 // return: 1. Pointer to Veth associated with `name'
-//            undetermined otherwise.
+//            undetermined otherwise. `Veth.Peer' is nil
+//            in the case the peer belongs to a different network namespace
 //         2. nil if there is a veth interface whose name is `name'
 //            non-nil otherwise
 func VethGetByName(name string) (*Veth, error) {
@@ -91,6 +92,11 @@ func VethGetByName(name string) (*Veth, error) {
 	}
 	if l, err := VethGetPeerLinkByName(name); err == nil {
 		veth.Peer = l
+		return &veth, nil
+	} else if IsNotFound(err) {
+		//
+		// the peer belongs to a different namespace
+		//
 		return &veth, nil
 	} else {
 		return nil, fmt.Errorf("VethGetPeerLinkByName(%s): %v", name, err)
@@ -201,8 +207,11 @@ func (v *Veth) IpAddrAdd(intf bool, addr *net.IPNet, up bool) error {
 
 	if intf == Self {
 		l = v.Link
-	} else {
+	} else if v.Peer != nil {
 		l = v.Peer
+	} else {
+		fs := "IpAddrAdd(%s): peer belongs to a different namespace"
+		return fmt.Errorf(fs, v.Name())
 	}
 	if err := netlink.AddrAdd(l, &netlink.Addr{IPNet: addr}); err != nil {
 		return err
@@ -227,8 +236,11 @@ func (v *Veth) IpAddrReplace(intf bool, addr *net.IPNet, up bool) error {
 
 	if intf == Self {
 		l = v.Link
-	} else {
+	} else if v.Peer != nil {
 		l = v.Peer
+	} else {
+		fs := "IpAddrReplace(%s): peer belongs to a different namespace"
+		return fmt.Errorf(fs, v.Name())
 	}
 	if err := netlink.AddrReplace(l, &netlink.Addr{IPNet: addr}); err != nil {
 		return err
@@ -250,8 +262,11 @@ func (v *Veth) IpAddrDelete(intf bool, addr *net.IPNet) error {
 
 	if intf == Self {
 		l = v.Link
-	} else {
+	} else if v.Peer != nil {
 		l = v.Peer
+	} else {
+		fs := "IpAddrDelete(%s): peer belongs to a different namespace"
+		return fmt.Errorf(fs, v.Name())
 	}
 	return netlink.AddrDel(l, &netlink.Addr{IPNet: addr})
 }
@@ -260,7 +275,14 @@ func (v *Veth) Name() string {
 	return v.Link.Attrs().Name
 }
 
+func (v *Veth) PeerIndex() (int, error) {
+	return netlink.VethPeerIndex(v.Link.(*netlink.Veth))
+}
+
 func (v *Veth) PeerName() string {
+	if v.Peer == nil {
+		return ""
+	}
 	return v.Peer.Attrs().Name
 }
 
@@ -269,6 +291,9 @@ func (v *Veth) TxQlen() int {
 }
 
 func (v *Veth) PeerTxQlen() int {
+	if v.Peer == nil {
+		return -1
+	}
 	return v.Peer.Attrs().TxQLen
 }
 
@@ -277,6 +302,9 @@ func (v *Veth) MTU() int {
 }
 
 func (v *Veth) PeerMTU() int {
+	if v.Peer == nil {
+		return -1
+	}
 	return v.Peer.Attrs().MTU
 }
 
@@ -285,13 +313,22 @@ func (v *Veth) NtxQs() int {
 }
 
 func (v *Veth) PeerNtxQs() int {
+	if v.Peer == nil {
+		return -1
+	}
 	return v.Peer.Attrs().NumTxQueues
 }
 
 func (v *Veth) NrxQs() int {
+	if v.Peer == nil {
+		return -1
+	}
 	return v.Link.Attrs().NumRxQueues
 }
 
 func (v *Veth) PeerNrxQs() int {
+	if v.Peer == nil {
+		return -1
+	}
 	return v.Peer.Attrs().NumRxQueues
 }
