@@ -13,7 +13,7 @@ Bridge and VRF
    Usage: example1 <add | delete>
 
 
-   Add or delete the following network namespaces
+   Add or delete the following VRF and bridge
 
                         +------+
                         | vrf1 |
